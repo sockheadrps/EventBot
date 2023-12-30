@@ -4,6 +4,7 @@ from uuid import uuid4
 from dataclasses import dataclass, field
 from typing import Dict, List
 import os
+from datetime import datetime
 
 def pad_name(name):
     if len(name) < 15:
@@ -170,13 +171,22 @@ class EventCommand(commands.Cog):
             self.users_events[event_id] = Event()
             self.users_events[event_id].title = ctx.content
             self.in_progress[ctx.author.name]['position'] = 1
-            await ctx.author.send("Date?")
+            await ctx.author.send("Date? 'today' to insert todays date")
 
         if position == 1:
-            self.users_events[event_id].date = ctx.content
-            self.in_progress[ctx.author.name]['position'] = 2
-            await ctx.author.send("Time?")
-        
+            print(ctx.content)
+            if ctx.content == "today":
+                current_datetime = datetime.now()
+                formatted_date = current_datetime.strftime("%m/%d/%Y")
+                print(formatted_date)
+                self.users_events[event_id].date = str(formatted_date)
+                self.in_progress[ctx.author.name]['position'] = 2
+                await ctx.author.send("Time?")
+            else:
+                self.users_events[event_id].date = ctx.content
+                self.in_progress[ctx.author.name]['position'] = 2
+                await ctx.author.send("Time?")
+            
         if position == 2:
             self.users_events[event_id].time = ctx.content
             self.in_progress[ctx.author.name]['position'] = 3

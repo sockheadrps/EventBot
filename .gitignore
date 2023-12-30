@@ -1,3 +1,4 @@
 tokens.txt
 .venv
 __paycache__
+cogs/__pycache__/
