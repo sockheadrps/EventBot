@@ -15,6 +15,7 @@ def pad_name(name):
 
 @dataclass
 class Event:
+    user: str = ""
     title: str = ""
     date: str = ""
     time: str = ""
@@ -59,6 +60,7 @@ class Event:
     def build_msg(self, event_id):
         msg = f"""
 {event_id}
+{self.title} created by {self.user}
 ** :star: {self.title} :star:**
 ~~                                 ~~
 **StartTime:** {self.time} {self.date}
@@ -169,6 +171,7 @@ class EventCommand(commands.Cog):
         
         if position == 0:
             self.users_events[event_id] = Event()
+            self.users_events[event_id].user = ctx.author.name
             self.users_events[event_id].title = ctx.content
             self.in_progress[ctx.author.name]['position'] = 1
             await ctx.author.send("Date? 'today' to insert todays date")
