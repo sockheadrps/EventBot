@@ -1,0 +1,18 @@
+setlocal
+    set "TOKEN="
+    set "EVENT_CHANNEL="
+
+if exist .venv\Scripts\activate (
+    call .venv\Scripts\activate
+    python main.py
+) else (
+    echo Virtual environment not found. Creating new virtual environment.
+    call python -m venv .venv
+    echo Acvtivating virtual environment
+    call .venv\Scripts\activate
+    echo downloading depenencies
+    call python.exe -m pip install --upgrade pip
+    call pip install discord
+    python main.py
+)
+endlocal

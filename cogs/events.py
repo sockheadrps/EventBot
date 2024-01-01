@@ -12,7 +12,6 @@ def get_random_picture():
     directory_path = 'assets'
     # List all files in the directory
     files = [f for f in os.listdir(directory_path) if os.path.isfile(os.path.join(directory_path, f))]
-    print(f"files {files}")
 
     if not files:
         raise FileNotFoundError(f"No files found in the directory: {directory_path}")
@@ -70,16 +69,15 @@ class Event:
     
     def add_team_one(self, username):
         if len(self.team_one) < 4:
-            print('team one added')
             self.team_one.append(username)
         else:
-            logging.info('Roster one full')
+            return
 
     def add_team_two(self, username):
         if len(self.team_two) < 4:
             self.team_two.append(username)
         else:
-            logging.info('Roster two full')
+            return
 
     def rm_team_one(self, username):
         filtered_list = [name for name in self.team_one if name != username]
@@ -137,7 +135,6 @@ class EventCommand(commands.Cog):
     
     @commands.Cog.listener()
     async def on_ready(self):
-        print('ready')
         self.event_channel = self.bot.get_channel(self.bot.EVENT_CHANNEL)
 
     @commands.Cog.listener()
@@ -242,8 +239,6 @@ class EventCommand(commands.Cog):
             match position:
                 case 0:
                     event_id = hash(prep_hash(ctx.author.name) + prep_hash(ctx.content))
-                    logging.warning(f'Event created: {event_id}')
-                    logging.warning(f'unhashed id: {prep_hash(ctx.author.name) + prep_hash(ctx.content)}')
 
                     in_progress['event_id'] = event_id
                     self.users_events[event_id] = Event()
