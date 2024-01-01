@@ -1,4 +1,5 @@
 tokens.txt
 .venv
-__paycache__
-cogs/__pycache__/
+__pycache__
+_scratch.py
+*.log
