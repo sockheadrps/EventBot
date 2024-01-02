@@ -235,6 +235,9 @@ class EventCommand(commands.Cog):
         if in_progress is not None:
             position = in_progress.get('position')
             event_id = in_progress.get('event_id')
+        else:
+            return
+
 
         # Quit making an event
         if ctx.content == "quit" or ctx.content == "exit" or ctx.content == "cancel":
@@ -306,6 +309,9 @@ class EventCommand(commands.Cog):
                     self.in_progress[ctx.author.name]['position'] = 6
 
                 case 6:
+                    if self.in_progress.get(ctx.author.name):
+                        self.in_progress[(ctx.author.name)] = None
+                        
                     await ctx.author.send("Event already created. Go away. \
                                         Or send Cashapp donations to $RSkiles614")
 
