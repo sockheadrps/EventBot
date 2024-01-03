@@ -4,9 +4,10 @@ from uuid import uuid4
 from dataclasses import dataclass, field
 from typing import Dict, List
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 import random
+import pytz
 
 
 def get_random_picture():
@@ -36,6 +37,39 @@ logging.basicConfig(filename=log_file_path, level=logging.INFO,
 with open(log_file_path, 'w'):
     pass
 
+timezone_dict = {
+    "HST": "-10",
+    "AKST": "-9",
+    "PST": "-8",
+    "MST": "-7",
+    "CST": "-6",
+    "EST": "-5"
+}
+
+
+def convert_user_input_to_utc(user_input, utc_offset):
+    user_time = user_input
+    try:
+        # Parse user input as a time
+        user_time = datetime.strptime(user_input, "%I:%M%p")  # For 12-hour format like 4:30PM
+    except ValueError:
+        try:
+            # If the first attempt fails, try parsing as 24-hour format like 14:30
+            user_time = datetime.strptime(user_input, "%H:%M")
+        except ValueError:
+            # If both attempts fail, handle the error (invalid input)
+            return None
+
+    # Combine user input time with today's date
+
+    # Convert to UTC
+
+    # Format the time as AM/PM
+    formatted_time = user_time.strftime('%I:%M%p')
+
+    return formatted_time
+
+
 
 def pad_name(name):
     if len(name) < 15:
@@ -50,6 +84,13 @@ def prep_hash(raw_string: str) -> str:
     return cleaned_string
 
 
+def increase_positions(position_reference):
+    logging.info(f"{position_reference} positions")
+    position_reference += 1
+    logging.info(f"{position_reference} positions")
+    return position_reference
+
+
 @dataclass
 class Event:
     user: str = ""
@@ -57,6 +98,7 @@ class Event:
     game_type = ""
     date: str = ""
     time: str = ""
+    time_zone: str = ""
     channel: str = ""
     banner: str = ""
     team_one: List[str] = field(default_factory=list)
@@ -92,12 +134,18 @@ class Event:
         self.team_two = filtered_list
 
     def generate_embed(self):
+        logging.info(type(self.time))
         embed = discord.Embed(title=f":star:          {self.title}          :star:",
                               colour=discord.Colour.dark_magenta())
 
         # Set thumbnial if provided, banner is empty string if we need to set
         file = self.banner
         embed.set_image(url=file)
+
+        if isinstance(self.time, str):
+            time = self.time
+        else:
+            time = self.time.strftime('%H:%M')
 
         if not self.banner:
             file = discord.File(get_random_picture(), filename="output.png")
@@ -107,7 +155,7 @@ class Event:
         embed.add_field(
             name=f":waning_crescent_moon: {self.game_type} :waxing_crescent_moon: ", value="", inline=False)
         embed.add_field(
-            name=f":alarm_clock: START TIME {self.date} {self.time} :alarm_clock:", value=f"")
+            name=f":alarm_clock: START TIME {self.date} {time} (UTC{self.time_zone}) :alarm_clock:", value=f"")
         embed.add_field(
             name=f":loud_sound: VOICE CHANNEL {self.channel} :loud_sound:", value="", inline=False)
         embed.add_field(name="", value="", inline=False)
@@ -234,10 +282,10 @@ class EventCommand(commands.Cog):
         # If user is making an event, get even creation position and ID
         if in_progress is not None:
             position = in_progress.get('position')
+            print(f'in progress position {position}')
             event_id = in_progress.get('event_id')
         else:
             return
-
 
         # Quit making an event
         if ctx.content == "quit" or ctx.content == "exit" or ctx.content == "cancel":
@@ -245,7 +293,7 @@ class EventCommand(commands.Cog):
                 self.in_progress[(ctx.author.name)] = None
             await ctx.author.send("Canceled event creation")
             return
-
+        logging.info(f"author {ctx.author.name} {self.bot.user}")
         if position is not None:
             match position:
                 case 0:
@@ -256,13 +304,16 @@ class EventCommand(commands.Cog):
                     self.users_events[event_id] = Event()
                     self.users_events[event_id].user = ctx.author.name
                     self.users_events[event_id].title = ctx.content
-                    self.in_progress[ctx.author.name]['position'] = 1
+                    self.in_progress[ctx.author.name]['position'] += 1
+                    position = self.in_progress[ctx.author.name]['position']
+                    print(f"postion {position}")
                     await ctx.author.send("What game type?")
 
                 case 1:
                     self.users_events[event_id].game_type = ctx.content
                     await ctx.author.send("Date? 'today' to insert todays date")
-                    self.in_progress[ctx.author.name]['position'] = 2
+                    self.in_progress[ctx.author.name]['position'] += 1
+                    position = self.in_progress[ctx.author.name]['position']
 
                 case 2:
                     if ctx.content == "today":
@@ -270,24 +321,63 @@ class EventCommand(commands.Cog):
                         formatted_date = current_datetime.strftime(
                             "%A, %m/%d/%Y")
                         self.users_events[event_id].date = str(formatted_date)
-                        self.in_progress[ctx.author.name]['position'] = 3
-                        await ctx.author.send("Time?")
+                        self.in_progress[ctx.author.name]['position'] += 1
+                        position = self.in_progress[ctx.author.name]['position']
+
                     else:
                         self.users_events[event_id].date = ctx.content
-                        self.in_progress[ctx.author.name]['position'] = 3
-                        await ctx.author.send("Time?")
+                        self.in_progress[ctx.author.name]['position'] += 1
+                        position = self.in_progress[ctx.author.name]['position']
+
+                    timezones = "\n".join(
+                        f"{abbreviation}: UTC {utc_offset}" for abbreviation, utc_offset in timezone_dict.items())
+
+                    await ctx.author.send(f"Time Zone? You will set your start time after this. Common US timezones:\n{timezones} \n *if you dont see your timezone, input the UTC offset, as a negative or positive numberA*")
 
                 case 3:
-                    self.users_events[event_id].time = ctx.content
-                    self.in_progress[ctx.author.name]['position'] = 4
+                    if timezone_dict.get(ctx.content.upper()):
+                        self.users_events[event_id].time_zone = int(timezone_dict[ctx.content.upper()])
+                        self.in_progress[ctx.author.name]['position'] += 1
+                        position = self.in_progress[ctx.author.name]['position']
+                        await ctx.author.send(f"Start Time?: e.g. 4:30PM or 14:30")
+                        return
+                    try:
+                        if str(ctx.content.isnumeric()):
+                            user_offset = int(ctx.content)
+                            if -12 <= user_offset <= 14:
+                                self.in_progress[ctx.author.name]['position'] += 1
+                                position = self.in_progress[ctx.author.name]['position']
+                                self.users_events[event_id].time_zone = user_offset
+                                await ctx.author.send(f"Start Time?: e.g. 4:30PM or 14:30")
+                                return
+
+                            else:
+                                # Outside the acceptable range
+                                print("Please provide a UTC offset within the range of -12 to 14.")
+                                await ctx.author.send(f"Please provide a UTC offset within the range of -12 to 14.")
+                    except ValueError:
+                        # Not a numeric input
+                        await ctx.author.send(f"Please provide a numeric UTC offset.")
+                
+
+
+                        
+                case 4:
+                    self.users_events[event_id].time = convert_user_input_to_utc(ctx.content,
+                                                                                 self.users_events[event_id].time_zone)
+                    logging.info(self.users_events[event_id].time)
+                    self.in_progress[ctx.author.name]['position'] += 1
+                    position = self.in_progress[ctx.author.name]['position']
                     await ctx.author.send("Voice Channel link?")
 
-                case 4:
-                    self.users_events[event_id].channel = ctx.content
-                    self.in_progress[ctx.author.name]['position'] = 5
-                    await ctx.author.send("Banner? 'pass' for a default banner")
 
                 case 5:
+                    self.users_events[event_id].channel = ctx.content
+                    self.in_progress[ctx.author.name]['position'] += 1
+                    position = self.in_progress[ctx.author.name]['position']
+                    await ctx.author.send("Banner? 'pass' for a default banner")
+
+                case 6:
                     if len(ctx.attachments) > 0:
                         self.users_events[event_id].banner = ctx.attachments[0].url
                         msg, file = self.users_events[event_id].generate_embed(
@@ -306,12 +396,13 @@ class EventCommand(commands.Cog):
                         await message.add_reaction("2️⃣")
                         await ctx.author.send("Event created.")
 
-                    self.in_progress[ctx.author.name]['position'] = 6
+                    self.in_progress[ctx.author.name]['position'] += 1
+                    position = self.in_progress[ctx.author.name]['position']
 
-                case 6:
+                case 7:
                     if self.in_progress.get(ctx.author.name):
                         self.in_progress[(ctx.author.name)] = None
-                        
+
                     await ctx.author.send("Event already created. Go away. \
                                         Or send Cashapp donations to $RSkiles614")
 
