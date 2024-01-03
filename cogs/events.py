@@ -7,7 +7,6 @@ import os
 from datetime import datetime, timedelta
 import logging
 import random
-import pytz
 
 
 def get_random_picture():
