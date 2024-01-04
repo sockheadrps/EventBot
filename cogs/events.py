@@ -4,10 +4,13 @@ from uuid import uuid4
 from dataclasses import dataclass, field
 from typing import Dict, List
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 import logging
 import random
-
+import asyncio
+import pytz
+from zoneinfo import ZoneInfo
+from .utils.utils import create_event
 
 def get_random_picture():
     directory_path = 'assets'
@@ -59,15 +62,60 @@ def convert_user_input_to_utc(user_input, utc_offset):
             # If both attempts fail, handle the error (invalid input)
             return None
 
-    # Combine user input time with today's date
-
-    # Convert to UTC
-
     # Format the time as AM/PM
     formatted_time = user_time.strftime('%I:%M%p')
 
     return formatted_time
 
+
+def convert_user_time_to_utc(usr_time, usr_timezone):
+    try:
+        # Parse user input as a time
+        user_time = datetime.strptime(usr_time, "%I:%M%p")  # For 12-hour format like 4:30PM
+    except ValueError:
+        try:
+            # If the first attempt fails, try parsing as 24-hour format like 14:30
+            user_time = datetime.strptime(usr_time, "%H:%M")
+        except ValueError:
+            # If both attempts fail, handle the error (invalid input)
+            return None
+    # Format the time as AM/PM
+    formatted_time = user_time.strftime("%H:%M")
+    # Define the user's local timezone
+    utc_offset_minutes = int(usr_timezone) * 60
+    # Create a FixedOffset timezone object
+    local_timezone = pytz.FixedOffset(utc_offset_minutes)
+
+    # Get the current date in the user's local timezone
+    local_datetime = datetime.now(local_timezone)
+
+    # Parse the user's input time
+    user_time = datetime.strptime(usr_time, "%I:%M%p")
+
+    # Combine the user's input time with the current date
+    user_datetime = local_datetime.replace(hour=user_time.hour, minute=user_time.minute, second=0, microsecond=0)
+
+    return user_datetime
+
+async def delayed_async_task(seconds, task, send_obj=None, send_str=""):
+    await asyncio.sleep(seconds)
+
+    if send_obj is not None:
+        await task()
+        await send_obj.send(content=send_str)
+
+    else:     
+        await task()
+
+        
+async def delayed_async_start_task(delay, channel, message_content):
+    await asyncio.sleep(delay)
+    msg = await channel.send(message_content)
+
+
+async def delayed_async_delete_msg__task(delay, msg):
+    await asyncio.sleep(delay)
+    msg = await msg.delete()
 
 
 def pad_name(name):
@@ -83,11 +131,21 @@ def prep_hash(raw_string: str) -> str:
     return cleaned_string
 
 
-def increase_positions(position_reference):
-    logging.info(f"{position_reference} positions")
-    position_reference += 1
-    logging.info(f"{position_reference} positions")
-    return position_reference
+def centered_title(title, space_characters, pad_len):
+        max_length = pad_len
+
+        if len(title) > max_length:
+            truncated_string = title[:max_length - 3] + "..."
+        else:
+            truncated_string = title
+        total_width = 48
+        title_width = len(truncated_string)
+        hyphens_width = (total_width - title_width) // 2
+        hyphens = space_characters * hyphens_width
+
+        centered_title = f"{hyphens} {truncated_string} {hyphens}"
+
+        return centered_title
 
 
 @dataclass
@@ -99,6 +157,7 @@ class Event:
     time: str = ""
     time_zone: str = ""
     channel: str = ""
+    msg_id: str = ""
     banner: str = ""
     team_one: List[str] = field(default_factory=list)
     team_two: List[str] = field(default_factory=list)
@@ -125,42 +184,53 @@ class Event:
             return
 
     def rm_team_one(self, username):
+        print(f"{self.team_one}")
         filtered_list = [name for name in self.team_one if name != username]
+        print(f"{filtered_list}")
         self.team_one = filtered_list
 
     def rm_team_two(self, username):
+        print(f"{self.team_two}")
         filtered_list = [name for name in self.team_two if name != username]
+        print(f"{filtered_list}")
         self.team_two = filtered_list
 
     def generate_embed(self):
-        logging.info(type(self.time))
-        embed = discord.Embed(title=f":star:          {self.title}          :star:",
-                              colour=discord.Colour.dark_magenta())
-
-        # Set thumbnial if provided, banner is empty string if we need to set
-        file = self.banner
-        embed.set_image(url=file)
-
         if isinstance(self.time, str):
             time = self.time
         else:
             time = self.time.strftime('%H:%M')
 
-        if not self.banner:
-            file = discord.File(get_random_picture(), filename="output.png")
-            embed.set_image(url="attachment://output.png")
+        pad_len = 40
 
-        embed.add_field(name=f"~~{('-'*48)}~~", value="", inline=False)
+        embed = discord.Embed(title=f":star::star::star:{centered_title(self.title, ' ', pad_len)}:star::star::star:",
+                              colour=discord.Colour.dark_magenta())
+
+        # Set thumbnial if provided, banner is empty string if we need to set
+        file = self.banner
+
+        if not self.banner:
+            print('not')
+            file = discord.File(get_random_picture(), filename="output.png")
+            print(f"file is {file}")
+            print(get_random_picture())
+
+            # embed.set_image(url="attachment://output.png")
+        else:
+            embed.set_image(url=file)
+            
+
+
         embed.add_field(
-            name=f":waning_crescent_moon: {self.game_type} :waxing_crescent_moon: ", value="", inline=False)
+            name=f":waning_crescent_moon::waning_crescent_moon: {centered_title(self.game_type,  ' ', pad_len)} :waxing_crescent_moon::waxing_crescent_moon: ", value="", inline=False)
         embed.add_field(
             name=f":alarm_clock: START TIME {self.date} {time} (UTC{self.time_zone}) :alarm_clock:", value=f"")
         embed.add_field(
             name=f":loud_sound: VOICE CHANNEL {self.channel} :loud_sound:", value="", inline=False)
         embed.add_field(name="", value="", inline=False)
-        embed.add_field(name=f":dog2:~~----~~Team One~~----~~:dog2:",
+        embed.add_field(name=f":dog2:~~-----~~Team One~~-----~~:dog2:",
                         value=self.get_roster(self.team_one))
-        embed.add_field(name=f":cat2:~~----~~Team Two~~----~~:cat2:",
+        embed.add_field(name=f":cat2:~~-----~~Team Two~~-----~~:cat2:",
                         value=self.get_roster(self.team_two))
         embed.set_footer(text=f"{self.title} created by {self.user}")
 
@@ -189,6 +259,16 @@ class EventCommand(commands.Cog):
     @commands.Cog.listener()
     async def on_ready(self):
         self.event_channel = self.bot.get_channel(self.bot.EVENT_CHANNEL)
+        asyncio.get_event_loop().create_task(self.events_loop())
+        test_event = create_event(Event)
+        event_id = hash(prep_hash(test_event.user) + prep_hash(test_event.title))
+        self.users_events[event_id] = test_event
+        msg, file = self.users_events[event_id].generate_embed(
+        )
+        message = await self.event_channel.send(embed=msg, file=file)
+        self.users_events[event_id].msg_id = message.id
+        await message.add_reaction("1️⃣")
+        await message.add_reaction("2️⃣")
 
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
@@ -197,10 +277,12 @@ class EventCommand(commands.Cog):
         message = await self.event_channel.fetch_message(payload.message_id)
         if not message:
             return
+        
 
         member = payload.member
         if not message.embeds:
             return
+        
 
         embed = message.embeds[0]
 
@@ -212,30 +294,32 @@ class EventCommand(commands.Cog):
 
         event_id = hash(prep_hash(event_creator) + prep_hash(title_of_event))
 
+        if not self.users_events.get(event_id):
+            return None
+        
         if payload.event_type == 'REACTION_ADD' and member.name != self.bot.user.name:
             if member.name in self.users_events[event_id].team_one:
                 return
             if member.name in self.users_events[event_id].team_two:
                 return
             if payload.emoji.name == '1️⃣':
-                self.users_events[event_id].add_team_one(member.name)
+                self.users_events[event_id].add_team_one(member.display_name)
+
                 embd, _ = self.users_events[event_id].generate_embed()
                 await message.edit(embed=embd)
             if payload.emoji.name == '2️⃣':
-                self.users_events[event_id].add_team_two(member.name)
+                self.users_events[event_id].add_team_two(member.display_name)
                 embd, _ = self.users_events[event_id].generate_embed()
                 await message.edit(embed=embd)
 
     @commands.Cog.listener()
     async def on_raw_reaction_remove(self, payload: discord.RawReactionActionEvent):
         # Get message contents and user
+
         message = await self.event_channel.fetch_message(payload.message_id)
         member = payload.member
 
-        if not message:
-            return
-
-        if not message.embeds:
+        if not message or len(message.embeds) < 1:
             return
 
         embed = message.embeds[0]
@@ -247,17 +331,20 @@ class EventCommand(commands.Cog):
         title_of_event = first_line.partition(" created by")[0]
 
         event_id = hash(prep_hash(event_creator) + prep_hash(title_of_event))
+        if not self.users_events.get(event_id):
+            return None
 
         # This will get the object for the member who owns the removed reaction.
         member = discord.utils.get(message.guild.members, id=payload.user_id)
+        print(member.display_name)
 
         if payload.event_type == 'REACTION_REMOVE':
             if payload.emoji.name == '1️⃣':
-                self.users_events[event_id].rm_team_one(member.name)
+                self.users_events[event_id].rm_team_one(member.display_name)
                 embd, _ = self.users_events[event_id].generate_embed()
                 await message.edit(embed=embd)
             if payload.emoji.name == '2️⃣':
-                self.users_events[event_id].rm_team_two(member.name)
+                self.users_events[event_id].rm_team_two(member.display_name)
                 embd, _ = self.users_events[event_id].generate_embed()
                 await message.edit(embed=embd)
 
@@ -281,7 +368,6 @@ class EventCommand(commands.Cog):
         # If user is making an event, get even creation position and ID
         if in_progress is not None:
             position = in_progress.get('position')
-            print(f'in progress position {position}')
             event_id = in_progress.get('event_id')
         else:
             return
@@ -292,7 +378,7 @@ class EventCommand(commands.Cog):
                 self.in_progress[(ctx.author.name)] = None
             await ctx.author.send("Canceled event creation")
             return
-        logging.info(f"author {ctx.author.name} {self.bot.user}")
+        
         if position is not None:
             match position:
                 case 0:
@@ -305,7 +391,6 @@ class EventCommand(commands.Cog):
                     self.users_events[event_id].title = ctx.content
                     self.in_progress[ctx.author.name]['position'] += 1
                     position = self.in_progress[ctx.author.name]['position']
-                    print(f"postion {position}")
                     await ctx.author.send("What game type?")
 
                 case 1:
@@ -352,14 +437,11 @@ class EventCommand(commands.Cog):
 
                             else:
                                 # Outside the acceptable range
-                                print("Please provide a UTC offset within the range of -12 to 14.")
                                 await ctx.author.send(f"Please provide a UTC offset within the range of -12 to 14.")
                     except ValueError:
                         # Not a numeric input
                         await ctx.author.send(f"Please provide a numeric UTC offset.")
                 
-
-
                         
                 case 4:
                     self.users_events[event_id].time = convert_user_input_to_utc(ctx.content,
@@ -377,26 +459,30 @@ class EventCommand(commands.Cog):
                     await ctx.author.send("Banner? 'pass' for a default banner")
 
                 case 6:
-                    if len(ctx.attachments) > 0:
-                        self.users_events[event_id].banner = ctx.attachments[0].url
-                        msg, file = self.users_events[event_id].generate_embed(
-                        )
-                        message = await self.event_channel.send(embed=msg, file=file)
+                    try:
+                        if len(ctx.attachments) > 0:
+                            self.users_events[event_id].banner = ctx.attachments[0].url
+                            msg, file = self.users_events[event_id].generate_embed(
+                            )
+                            message = await self.event_channel.send(embed=msg, file=file)
+                        else:
+                            msg, file = self.users_events[event_id].generate_embed(
+                            )
+                            file = discord.File(get_random_picture(), filename="output.png")
+                            message = await self.event_channel.send(embed=msg, file=file)
+                        self.users_events[event_id].msg_id = message.id
                         await message.add_reaction("1️⃣")
                         await message.add_reaction("2️⃣")
                         await ctx.author.send("Event created.")
+                        self.in_progress[ctx.author.name]['position'] += 1
+                        position = self.in_progress[ctx.author.name]['position']
+                    except Exception as e:
+                        await ctx.author.send(f"error {e}")
+                        await ctx.author.send("Title of Event??")
+                        self.in_progress[ctx.author.name]['position'] = 0
 
-                    else:
-                        self.users_events[event_id].banner = ""
-                        msg, file = self.users_events[event_id].generate_embed(
-                        )
-                        message = await self.event_channel.send(embed=msg, file=file)
-                        await message.add_reaction("1️⃣")
-                        await message.add_reaction("2️⃣")
-                        await ctx.author.send("Event created.")
 
-                    self.in_progress[ctx.author.name]['position'] += 1
-                    position = self.in_progress[ctx.author.name]['position']
+  
 
                 case 7:
                     if self.in_progress.get(ctx.author.name):
@@ -414,6 +500,38 @@ class EventCommand(commands.Cog):
         await ctx.author.send("Type 'quit' to abandon event setup")
         await ctx.author.send("Title of Event??")
 
+    async def events_loop(self):
+        reminder_delay = 120
+        clean_up_delay = 300
+
+        while True:
+            events_to_remove = []
+
+            for evt_id, evt in self.users_events.items():
+                if evt.time and evt.time_zone and evt.msg_id:
+                    given_datetime = convert_user_time_to_utc(evt.time, evt.time_zone).replace(tzinfo=timezone.utc)
+                    current_datetime_in_desired_timezone = datetime.utcnow().replace(tzinfo=timezone.utc) + timedelta(hours=int(evt.time_zone))
+                    if given_datetime + timedelta(seconds=-reminder_delay) < current_datetime_in_desired_timezone:
+                        users = evt.team_one + evt.team_two
+                        mention_strings = [f"<@{member.id}>" for member in self.event_channel.guild.members if member.name in users]
+                        mention_string = ' '.join(mention_strings)
+                        reminder = await self.event_channel.send(f"Hey {mention_string}, there's an event happening in {reminder_delay} minutes, {evt.title}, ({evt.game_type}) with {evt.user}")
+                        deleyed_reminder_del = delayed_async_task(reminder_delay, reminder.delete)
+                        task = asyncio.create_task(deleyed_reminder_del)
+                        delayed_start = delayed_async_start_task(reminder_delay, self.event_channel, f"Hey {mention_string}, {evt.title} happening now!")
+                        task_two = asyncio.create_task(delayed_start)
+                        delete_event = await self.event_channel.fetch_message(evt.msg_id)
+                        task_three = delayed_async_delete_msg__task(clean_up_delay + reminder_delay, delete_event)
+                        events_to_remove.append(evt_id)
+                        await asyncio.gather(task, task_two, task_three)
+                        break
+
+
+            for evt_id in events_to_remove:
+                print('to rm')
+                del self.users_events[evt_id]
+
+            await asyncio.sleep(1)
 
 async def setup(bot):
     await bot.add_cog(EventCommand(bot))
