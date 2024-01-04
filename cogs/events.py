@@ -184,15 +184,11 @@ class Event:
             return
 
     def rm_team_one(self, username):
-        print(f"{self.team_one}")
         filtered_list = [name for name in self.team_one if name != username]
-        print(f"{filtered_list}")
         self.team_one = filtered_list
 
     def rm_team_two(self, username):
-        print(f"{self.team_two}")
         filtered_list = [name for name in self.team_two if name != username]
-        print(f"{filtered_list}")
         self.team_two = filtered_list
 
     def generate_embed(self):
@@ -208,11 +204,8 @@ class Event:
 
         # Set thumbnial if provided, banner is empty string if we need to set
         file = self.banner
-        print(f"type {type(self.banner)}")
-        print(f"string {self.banner}")
 
         if len(self.banner) < 1:
-            print('not')
             file = discord.File(get_random_picture(), filename="output.png")
 
             embed.set_image(url="attachment://output.png")
@@ -337,7 +330,6 @@ class EventCommand(commands.Cog):
 
         # This will get the object for the member who owns the removed reaction.
         member = discord.utils.get(message.guild.members, id=payload.user_id)
-        print(member.display_name)
 
         if payload.event_type == 'REACTION_REMOVE':
             if payload.emoji.name == '1️⃣':
@@ -529,7 +521,6 @@ class EventCommand(commands.Cog):
 
 
             for evt_id in events_to_remove:
-                print('to rm')
                 del self.users_events[evt_id]
 
             await asyncio.sleep(1)
