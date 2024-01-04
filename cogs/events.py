@@ -208,14 +208,14 @@ class Event:
 
         # Set thumbnial if provided, banner is empty string if we need to set
         file = self.banner
+        print(f"type {type(self.banner)}")
+        print(f"string {self.banner}")
 
-        if not self.banner:
+        if len(self.banner) < 1:
             print('not')
             file = discord.File(get_random_picture(), filename="output.png")
-            print(f"file is {file}")
-            print(get_random_picture())
 
-            # embed.set_image(url="attachment://output.png")
+            embed.set_image(url="attachment://output.png")
         else:
             embed.set_image(url=file)
             
@@ -417,7 +417,7 @@ class EventCommand(commands.Cog):
                     timezones = "\n".join(
                         f"{abbreviation}: UTC {utc_offset}" for abbreviation, utc_offset in timezone_dict.items())
 
-                    await ctx.author.send(f"Time Zone? You will set your start time after this. Common US timezones:\n{timezones} \n *if you dont see your timezone, input the UTC offset, as a negative or positive number e.g. '12* or ''")
+                    await ctx.author.send(f"Time Zone? You will set your start time after this. Common US timezones:\n{timezones} \n *if you dont see your timezone, input the UTC offset, as a negative or positive number e.g. '12* or '-12'")
 
                 case 3:
                     if timezone_dict.get(ctx.content.upper()):
@@ -505,7 +505,7 @@ class EventCommand(commands.Cog):
         reminder_delay = 120
         clean_up_delay = 300
 
-        while True:
+        while True: 
             events_to_remove = []
 
             for evt_id, evt in self.users_events.items():
@@ -516,7 +516,7 @@ class EventCommand(commands.Cog):
                         users = evt.team_one + evt.team_two
                         mention_strings = [f"<@{member.id}>" for member in self.event_channel.guild.members if member.display_name in users]
                         mention_string = ' '.join(mention_strings)
-                        reminder = await self.event_channel.send(f"Hey {mention_string}, there's an event happening in {(reminder_delay / 60)} minutes, {evt.title}, ({evt.game_type}) with {evt.user}")
+                        reminder = await self.event_channel.send(f"Hey {mention_string}, there's an event happening in {int(reminder_delay / 60)} minutes, {evt.title}, ({evt.game_type}) with {evt.user}")
                         deleyed_reminder_del = delayed_async_task(reminder_delay, reminder.delete)
                         task = asyncio.create_task(deleyed_reminder_del)
                         delayed_start = delayed_async_start_task(reminder_delay, self.event_channel, f"Hey {mention_string}, {evt.title} happening now!")
