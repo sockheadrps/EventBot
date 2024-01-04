@@ -259,6 +259,7 @@ class EventCommand(commands.Cog):
     @commands.Cog.listener()
     async def on_ready(self):
         self.event_channel = self.bot.get_channel(self.bot.EVENT_CHANNEL)
+        await self.event_channel.purge()
         asyncio.get_event_loop().create_task(self.events_loop())
         # test_event = create_event(Event)
         # event_id = hash(prep_hash(test_event.user) + prep_hash(test_event.title))
