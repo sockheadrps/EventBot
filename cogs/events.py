@@ -9,7 +9,6 @@ import logging
 import random
 import asyncio
 import pytz
-from zoneinfo import ZoneInfo
 from .utils.utils import create_event
 
 def get_random_picture():
