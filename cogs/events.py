@@ -260,15 +260,15 @@ class EventCommand(commands.Cog):
     async def on_ready(self):
         self.event_channel = self.bot.get_channel(self.bot.EVENT_CHANNEL)
         asyncio.get_event_loop().create_task(self.events_loop())
-        test_event = create_event(Event)
-        event_id = hash(prep_hash(test_event.user) + prep_hash(test_event.title))
-        self.users_events[event_id] = test_event
-        msg, file = self.users_events[event_id].generate_embed(
-        )
-        message = await self.event_channel.send(embed=msg, file=file)
-        self.users_events[event_id].msg_id = message.id
-        await message.add_reaction("1️⃣")
-        await message.add_reaction("2️⃣")
+        # test_event = create_event(Event)
+        # event_id = hash(prep_hash(test_event.user) + prep_hash(test_event.title))
+        # self.users_events[event_id] = test_event
+        # msg, file = self.users_events[event_id].generate_embed(
+        # )
+        # message = await self.event_channel.send(embed=msg, file=file)
+        # self.users_events[event_id].msg_id = message.id
+        # await message.add_reaction("1️⃣")
+        # await message.add_reaction("2️⃣")
 
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
