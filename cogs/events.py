@@ -252,8 +252,9 @@ class EventCommand(commands.Cog):
     @commands.Cog.listener()
     async def on_ready(self):
         self.event_channel = self.bot.get_channel(self.bot.EVENT_CHANNEL)
-        await self.event_channel.purge()
         asyncio.get_event_loop().create_task(self.events_loop())
+        await asyncio.sleep(1)
+        await self.event_channel.purge()
         # test_event = create_event(Event)
         # event_id = hash(prep_hash(test_event.user) + prep_hash(test_event.title))
         # self.users_events[event_id] = test_event
@@ -356,6 +357,11 @@ class EventCommand(commands.Cog):
 
         # Ignore the bots own messages
         if ctx.author == self.bot.user:
+            return
+
+        if isinstance(ctx.channel, discord.channel.DMChannel):
+            pass
+        else:
             return
 
         # If user is making an event, get even creation position and ID
