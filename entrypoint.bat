@@ -1,7 +1,7 @@
 setlocal
-    set "TOKEN="
-    set "EVENT_CHANNEL="
-
+@REM Incase you want to use this entrypoint
+@REM set "TOKEN=YOUR_TOKEM"
+@REM set "EVENT_CHANNEL=YOUR_EVENT_CHANNEL_ID"
 if exist .venv\Scripts\activate (
     call .venv\Scripts\activate
     python main.py
