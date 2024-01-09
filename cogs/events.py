@@ -9,8 +9,8 @@ import logging
 import random
 import asyncio
 import pytz
-from zoneinfo import ZoneInfo
 from .utils.utils import create_event
+
 
 def get_random_picture():
     directory_path = 'assets'
@@ -199,8 +199,9 @@ class Event:
 
         pad_len = 40
 
-        embed = discord.Embed(title=f":star::star::star:{centered_title(self.title, ' ', pad_len)}:star::star::star:",
+        embed = discord.Embed(title=f" ",
                               colour=discord.Colour.dark_magenta())
+
 
         # Set thumbnial if provided, banner is empty string if we need to set
         file = self.banner
@@ -211,19 +212,35 @@ class Event:
             embed.set_image(url="attachment://output.png")
         else:
             embed.set_image(url=file)
-            
 
 
+        embed.add_field(name=" ", value=" ", inline=False)
+        embed.add_field(name=" ", value=" ",inline=False)            
+
+        embed.add_field(name=" ", value=" ", inline=True)
+        embed.add_field(name=":lotus::lotus::lotus:**My super cool event**:lotus::lotus::lotus:", value=" ", inline=True)
+        embed.add_field(name=" ", value=" ", inline=True)
+
+        embed.add_field(name=" ", value=" ", inline=False)
+        embed.add_field(name=" ", value=" ",inline=False)
+
+
+        embed.add_field(name=" ", value=" ",inline=False)
         embed.add_field(
-            name=f":waning_crescent_moon::waning_crescent_moon: {centered_title(self.game_type,  ' ', pad_len)} :waxing_crescent_moon::waxing_crescent_moon: ", value="", inline=False)
+            name=f":loud_sound:  VOICE CHANNEL{self.channel}  :loud_sound:", value="", inline=True)
+
+    
         embed.add_field(
-            name=f":alarm_clock: START TIME {self.date} {time} (UTC{self.time_zone}) :alarm_clock:", value=f"")
-        embed.add_field(
-            name=f":loud_sound: VOICE CHANNEL {self.channel} :loud_sound:", value="", inline=False)
-        embed.add_field(name="", value="", inline=False)
-        embed.add_field(name=f":dog2:~~-----~~Team One~~-----~~:dog2:",
+            name=f":alarm_clock: START TIME {self.date} {time} (UTC{self.time_zone}) :alarm_clock:", value=f"", inline=True)
+        embed.add_field(name=" ", value="", inline=False)
+
+        embed.add_field(name=" ", value=" ", inline=False)
+        embed.add_field(name=" ", value=" ", inline=False)
+
+
+        embed.add_field(name=f":frog:~~-----~~Team One~~-----~~:frog:",
                         value=self.get_roster(self.team_one))
-        embed.add_field(name=f":cat2:~~-----~~Team Two~~-----~~:cat2:",
+        embed.add_field(name=f":swan:~~-----~~Team Two~~-----~~:swan:",
                         value=self.get_roster(self.team_two))
         embed.set_footer(text=f"{self.title} created by {self.user}")
 
@@ -242,6 +259,8 @@ class CreateInProgres:
     event_id: uuid4
 
 
+
+
 class EventCommand(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -255,15 +274,21 @@ class EventCommand(commands.Cog):
         asyncio.get_event_loop().create_task(self.events_loop())
         await asyncio.sleep(1)
         await self.event_channel.purge()
-        # test_event = create_event(Event)
-        # event_id = hash(prep_hash(test_event.user) + prep_hash(test_event.title))
-        # self.users_events[event_id] = test_event
-        # msg, file = self.users_events[event_id].generate_embed(
-        # )
-        # message = await self.event_channel.send(embed=msg, file=file)
-        # self.users_events[event_id].msg_id = message.id
-        # await message.add_reaction("1️⃣")
-        # await message.add_reaction("2️⃣")
+        test_event = create_event(Event)
+        event_id = hash(prep_hash(test_event.user) + prep_hash(test_event.title))
+        self.users_events[event_id] = test_event
+        msg, file = self.users_events[event_id].generate_embed(
+        )
+
+        message = await self.event_channel.send(embed=msg, file=file)
+        self.users_events[event_id].msg_id = message.id
+        await message.add_reaction("1️⃣")
+        await message.add_reaction("2️⃣")
+        await message.add_reaction("🛠️") 
+
+
+
+
 
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
@@ -307,6 +332,8 @@ class EventCommand(commands.Cog):
                 embd, _ = self.users_events[event_id].generate_embed()
                 await message.edit(embed=embd)
 
+            if payload.emoji.name == ':wrench:':
+                pass
     @commands.Cog.listener()
     async def on_raw_reaction_remove(self, payload: discord.RawReactionActionEvent):
         # Get message contents and user
@@ -472,6 +499,7 @@ class EventCommand(commands.Cog):
                         self.users_events[event_id].msg_id = message.id
                         await message.add_reaction("1️⃣")
                         await message.add_reaction("2️⃣")
+                        await message.add_reaction(":wrench:")
                         await ctx.author.send("Event created.")
                         self.in_progress[ctx.author.name]['position'] += 1
                         position = self.in_progress[ctx.author.name]['position']
@@ -479,6 +507,7 @@ class EventCommand(commands.Cog):
                         await ctx.author.send(f"error {e}")
                         await ctx.author.send("Title of Event??")
                         self.in_progress[ctx.author.name]['position'] = 0
+
 
 
   
