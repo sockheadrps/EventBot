@@ -17,7 +17,9 @@ class Select(discord.ui.Select):
         self.guild = guild
         self.name = name
         options = []
+        print(f"roles = {roles}")
         for role in roles:
+            print(f"role { role}")
             option = discord.SelectOption(
                 label=role.name,
                 emoji="👌",  # You can customize the emoji based on your preferences
