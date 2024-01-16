@@ -17,15 +17,14 @@ class Select(discord.ui.Select):
         self.guild = guild
         self.name = name
         options = []
-        print(f"roles = {roles}")
         for role in roles:
-            print(f"role { role}")
-            option = discord.SelectOption(
-                label=role.name,
-                emoji="👌",  # You can customize the emoji based on your preferences
-                description=f"Select {role.name} role."
-            )
-            options.append(option)
+            if role.name.startswith("CUSTOM"):
+                option = discord.SelectOption(
+                    label=role.name,
+                    emoji="👌",  # You can customize the emoji based on your preferences
+                    description=f"Select {role.name} role."
+                )
+                options.append(option)
         super().__init__(placeholder="Select a role", max_values=len(roles), min_values=1, options=options)
 
     async def callback(self, interaction: discord.Interaction):
