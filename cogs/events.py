@@ -13,9 +13,11 @@ import time
 
 
 class Select(discord.ui.Select):
-    def __init__(self, roles, guild, name):
+    def __init__(self, roles, guild, name, message, event):
         self.guild = guild
         self.name = name
+        self.message = message
+        self.event = event
         options = []
         for role in roles:
             if str(role).startswith("CUSTOM"):
@@ -36,17 +38,19 @@ class Select(discord.ui.Select):
             selected_role = discord.utils.get(self.guild.roles, name=selected_role_name)
 
             if selected_role:
-                old_content = interaction.message.content
-                new_content = f"{old_content}\n{selected_role.mention} Come play!"
-                await interaction.response.edit_message(content=new_content)
+                self.event.call_roles.append(selected_role)
+                msg, file = self.event.generate_embed()
+                message = await self.message.edit(embed=msg)
+                await interaction.response.defer()
+
             else:
                 await interaction.response.send_message("Invalid role selection.", ephemeral=True)
 
 class SelectView(discord.ui.View):
-    def __init__(self, timeout=20, roles=None, guild=None, name=""):
+    def __init__(self, event=None, timeout=20, roles=None, guild=None, name="", message=None):
         super().__init__(timeout=timeout)
         if roles is not None and guild is not None:
-            self.add_item(Select(roles, guild, name))
+            self.add_item(Select(roles, guild, name, message, event))
 
 
 class Menu(discord.ui.View):
@@ -69,7 +73,7 @@ class Menu(discord.ui.View):
         await message.add_reaction("1️⃣")
         await message.add_reaction("2️⃣")
         await message.add_reaction("❌")
-        await interaction.response.send_message("Event created", view=SelectView(timeout=self.t_out, roles=self.roles, guild=self.guild, name=self.name), delete_after=self.t_out)
+        await interaction.response.send_message("Event created", view=SelectView(timeout=self.t_out, roles=self.roles, guild=self.guild, name=self.name, event=self.event, message=message), delete_after=self.t_out)
 
     @discord.ui.button(label="Use custom banner", style=discord.ButtonStyle.blurple)
     async def custom(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -132,6 +136,8 @@ class Event:
     team_one: List[str] = field(default_factory=list)
     team_two: List[str] = field(default_factory=list)
     player_ids = []
+    roles = []
+    call_roles = []
 
     def get_roster(self, team):
         roster = ""
@@ -163,8 +169,6 @@ class Event:
         self.team_two = filtered_list
 
     def generate_embed(self):
-
-        pad_len = 40
 
         embed = discord.Embed(title=f" ",
                               colour=discord.Colour.dark_magenta())
@@ -205,6 +209,8 @@ class Event:
                         value=self.get_roster(self.team_one))
         embed.add_field(name=f":swan:~~-----~~Team Two~~-----~~:swan:",
                         value=self.get_roster(self.team_two))
+        if len(self.call_roles) > 0:
+            embed.add_field(name="Roles", value="\n".join([role.mention for role in self.call_roles]), inline=False)
         embed.set_footer(text=f"{self.title} created by {self.user}")
 
         file = None
@@ -419,8 +425,10 @@ class EventCommand(commands.Cog):
         chan = self.bot.get_channel(self.bot.EVENT_CHANNEL)
         for guild in self.bot.guilds:
             g = guild
-            roles = await guild.fetch_roles()
-        view = Menu(event, chan, roles, g, self.seconds, name)
+            for role in await guild.fetch_roles():
+                if str(role).startswith("CUSTOM"):
+                    self.users_events[event_id].roles.append(role)
+        view = Menu(event, chan, self.users_events[event_id].roles, g, self.seconds, name)
         self.in_progress[name] = {
             "event_id": event_id,
             "position": 0
