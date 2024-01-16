@@ -18,26 +18,22 @@ class Select(discord.ui.Select):
         self.name = name
         options = []
         for role in roles:
-            if role.name.startswith("CUSTOM"):
+            if str(role).startswith("CUSTOM"):
                 option = discord.SelectOption(
                     label=role.name,
                     emoji="👌",  # You can customize the emoji based on your preferences
                     description=f"Select {role.name} role."
                 )
                 options.append(option)
-        super().__init__(placeholder="Select a role", max_values=len(roles), min_values=1, options=options)
+        print(options)
+        super().__init__(placeholder="Select a role", options=options)
 
     async def callback(self, interaction: discord.Interaction):
-        print(f" interaction.message.author { interaction.user}")
-        print(f" self.name {self.name}")
-        print(f"{(interaction.user == self.name)}")
         if str(interaction.user) == str(self.name):
             selected_role_name = self.values[0]  # Get the selected role name from values
-            print(f"srl {selected_role_name}")
 
             # Use discord.utils.get with the guild roles to get the role by name
             selected_role = discord.utils.get(self.guild.roles, name=selected_role_name)
-            print(f"sr {selected_role}")
 
             if selected_role:
                 old_content = interaction.message.content
