@@ -4,12 +4,79 @@ from uuid import uuid4
 from dataclasses import dataclass, field
 from typing import Dict, List
 import os
-from datetime import datetime, timezone, timedelta
 import logging
 import random
 import asyncio
-import pytz
 from .utils.utils import create_event
+from discord import app_commands
+import time
+
+
+class Select(discord.ui.Select):
+    def __init__(self, roles, guild, name):
+        self.guild = guild
+        self.name = name
+        options = []
+        for role in roles:
+            option = discord.SelectOption(
+                label=role.name,
+                emoji="👌",  # You can customize the emoji based on your preferences
+                description=f"Select {role.name} role."
+            )
+            options.append(option)
+        super().__init__(placeholder="Select a role", max_values=len(roles), min_values=1, options=options)
+
+    async def callback(self, interaction: discord.Interaction):
+        print(f" interaction.message.author { interaction.user}")
+        print(f" self.name {self.name}")
+        print(f"{(interaction.user == self.name)}")
+        if str(interaction.user) == str(self.name):
+            selected_role_name = self.values[0]  # Get the selected role name from values
+            print(f"srl {selected_role_name}")
+
+            # Use discord.utils.get with the guild roles to get the role by name
+            selected_role = discord.utils.get(self.guild.roles, name=selected_role_name)
+            print(f"sr {selected_role}")
+
+            if selected_role:
+                old_content = interaction.message.content
+                new_content = f"{old_content}\n{selected_role.mention} Come play!"
+                await interaction.response.edit_message(content=new_content)
+            else:
+                await interaction.response.send_message("Invalid role selection.", ephemeral=True)
+
+class SelectView(discord.ui.View):
+    def __init__(self, timeout=20, roles=None, guild=None, name=""):
+        super().__init__(timeout=timeout)
+        if roles is not None and guild is not None:
+            self.add_item(Select(roles, guild, name))
+
+
+class Menu(discord.ui.View):
+    def __init__(self, event, event_channel, roles=None, guild=None, t_out=0, name=""):
+        super().__init__()
+        self.value = None
+        self.event = event
+        self.event_channel = event_channel
+        self.roles = roles 
+        self.guild = guild
+        self.t_out = t_out
+        self.name = name
+
+    @discord.ui.button(label="Use default Banner", style=discord.ButtonStyle.green)
+    async def default(self, interaction: discord.Interaction, button: discord.ui.Button):
+        msg, file = self.event.generate_embed()
+        file = discord.File(get_random_picture(), filename="output.png")
+        message = await self.event_channel.send(embed=msg, file=file)
+        self.event.msg_id = message.id
+        await message.add_reaction("1️⃣")
+        await message.add_reaction("2️⃣")
+        await message.add_reaction("❌")
+        await interaction.response.send_message("Event created", view=SelectView(timeout=self.t_out, roles=self.roles, guild=self.guild, name=self.name), delete_after=self.t_out)
+
+    @discord.ui.button(label="Use custom banner", style=discord.ButtonStyle.blurple)
+    async def custom(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.user.send('Type quit to cancel. Otherwise, attatch IMG file for banner. 1920x1080 seem to work best.')
 
 
 def get_random_picture():
@@ -39,84 +106,6 @@ logging.basicConfig(filename=log_file_path, level=logging.INFO,
 with open(log_file_path, 'w'):
     pass
 
-timezone_dict = {
-    "HST": "-10",
-    "AKST": "-9",
-    "PST": "-8",
-    "MST": "-7",
-    "CST": "-6",
-    "EST": "-5"
-}
-
-
-def convert_user_input_to_utc(user_input, utc_offset):
-    user_time = user_input
-    try:
-        # Parse user input as a time
-        user_time = datetime.strptime(user_input, "%I:%M%p")  # For 12-hour format like 4:30PM
-    except ValueError:
-        try:
-            # If the first attempt fails, try parsing as 24-hour format like 14:30
-            user_time = datetime.strptime(user_input, "%H:%M")
-        except ValueError:
-            # If both attempts fail, handle the error (invalid input)
-            return None
-
-    # Format the time as AM/PM
-    formatted_time = user_time.strftime('%I:%M%p')
-
-    return formatted_time
-
-
-def convert_user_time_to_utc(usr_time, usr_timezone):
-    try:
-        # Parse user input as a time
-        user_time = datetime.strptime(usr_time, "%I:%M%p")  # For 12-hour format like 4:30PM
-    except ValueError:
-        try:
-            # If the first attempt fails, try parsing as 24-hour format like 14:30
-            user_time = datetime.strptime(usr_time, "%H:%M")
-        except ValueError:
-            # If both attempts fail, handle the error (invalid input)
-            return None
-    # Format the time as AM/PM
-    formatted_time = user_time.strftime("%H:%M")
-    # Define the user's local timezone
-    utc_offset_minutes = int(usr_timezone) * 60
-    # Create a FixedOffset timezone object
-    local_timezone = pytz.FixedOffset(utc_offset_minutes)
-
-    # Get the current date in the user's local timezone
-    local_datetime = datetime.now(local_timezone)
-
-    # Parse the user's input time
-    user_time = datetime.strptime(usr_time, "%I:%M%p")
-
-    # Combine the user's input time with the current date
-    user_datetime = local_datetime.replace(hour=user_time.hour, minute=user_time.minute, second=0, microsecond=0)
-
-    return user_datetime
-
-async def delayed_async_task(seconds, task, send_obj=None, send_str=""):
-    await asyncio.sleep(seconds)
-
-    if send_obj is not None:
-        await task()
-        await send_obj.send(content=send_str)
-
-    else:     
-        await task()
-
-        
-async def delayed_async_start_task(delay, channel, message_content):
-    await asyncio.sleep(delay)
-    msg = await channel.send(message_content)
-
-
-async def delayed_async_delete_msg__task(delay, msg):
-    await asyncio.sleep(delay)
-    msg = await msg.delete()
-
 
 def pad_name(name):
     if len(name) < 15:
@@ -131,23 +120,6 @@ def prep_hash(raw_string: str) -> str:
     return cleaned_string
 
 
-def centered_title(title, space_characters, pad_len):
-        max_length = pad_len
-
-        if len(title) > max_length:
-            truncated_string = title[:max_length - 3] + "..."
-        else:
-            truncated_string = title
-        total_width = 48
-        title_width = len(truncated_string)
-        hyphens_width = (total_width - title_width) // 2
-        hyphens = space_characters * hyphens_width
-
-        centered_title = f"{hyphens} {truncated_string} {hyphens}"
-
-        return centered_title
-
-
 @dataclass
 class Event:
     user: str = ""
@@ -159,8 +131,10 @@ class Event:
     channel: str = ""
     msg_id: str = ""
     banner: str = ""
+    rel_time: str = ""
     team_one: List[str] = field(default_factory=list)
     team_two: List[str] = field(default_factory=list)
+    player_ids = []
 
     def get_roster(self, team):
         roster = ""
@@ -192,16 +166,11 @@ class Event:
         self.team_two = filtered_list
 
     def generate_embed(self):
-        if isinstance(self.time, str):
-            time = self.time
-        else:
-            time = self.time.strftime('%H:%M')
 
         pad_len = 40
 
         embed = discord.Embed(title=f" ",
                               colour=discord.Colour.dark_magenta())
-
 
         # Set thumbnial if provided, banner is empty string if we need to set
         file = self.banner
@@ -213,30 +182,27 @@ class Event:
         else:
             embed.set_image(url=file)
 
-
         embed.add_field(name=" ", value=" ", inline=False)
-        embed.add_field(name=" ", value=" ",inline=False)            
+        embed.add_field(name=" ", value=" ", inline=False)
 
         embed.add_field(name=" ", value=" ", inline=True)
-        embed.add_field(name=":lotus::lotus::lotus:**My super cool event**:lotus::lotus::lotus:", value=" ", inline=True)
+        embed.add_field(
+            name=f":lotus::lotus::lotus:**{self.title}**:lotus::lotus::lotus:", value=" ", inline=True)
         embed.add_field(name=" ", value=" ", inline=True)
 
         embed.add_field(name=" ", value=" ", inline=False)
-        embed.add_field(name=" ", value=" ",inline=False)
+        embed.add_field(name=" ", value=" ", inline=False)
 
-
-        embed.add_field(name=" ", value=" ",inline=False)
+        embed.add_field(name=" ", value=" ", inline=False)
         embed.add_field(
             name=f":loud_sound:  VOICE CHANNEL{self.channel}  :loud_sound:", value="", inline=True)
 
-    
         embed.add_field(
-            name=f":alarm_clock: START TIME {self.date} {time} (UTC{self.time_zone}) :alarm_clock:", value=f"", inline=True)
+            name=f":alarm_clock: {self.rel_time} :alarm_clock:", value=f"", inline=True)
         embed.add_field(name=" ", value="", inline=False)
 
         embed.add_field(name=" ", value=" ", inline=False)
         embed.add_field(name=" ", value=" ", inline=False)
-
 
         embed.add_field(name=f":frog:~~-----~~Team One~~-----~~:frog:",
                         value=self.get_roster(self.team_one))
@@ -259,8 +225,6 @@ class CreateInProgres:
     event_id: uuid4
 
 
-
-
 class EventCommand(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -272,23 +236,20 @@ class EventCommand(commands.Cog):
     async def on_ready(self):
         self.event_channel = self.bot.get_channel(self.bot.EVENT_CHANNEL)
         asyncio.get_event_loop().create_task(self.events_loop())
-        await asyncio.sleep(1)
         await self.event_channel.purge()
-        test_event = create_event(Event)
-        event_id = hash(prep_hash(test_event.user) + prep_hash(test_event.title))
-        self.users_events[event_id] = test_event
-        msg, file = self.users_events[event_id].generate_embed(
-        )
+        # await asyncio.sleep(1)
+        # await self.event_channel.purge()
+        # test_event = create_event(Event)
+        # event_id = hash(prep_hash(test_event.user) + prep_hash(test_event.title))
+        # self.users_events[event_id] = test_event
+        # msg, file = self.users_events[event_id].generate_embed(
+        # )
 
-        message = await self.event_channel.send(embed=msg, file=file)
-        self.users_events[event_id].msg_id = message.id
-        await message.add_reaction("1️⃣")
-        await message.add_reaction("2️⃣")
-        await message.add_reaction("🛠️") 
-
-
-
-
+        # message = await self.event_channel.send(embed=msg, file=file)
+        # self.users_events[event_id].msg_id = message.id
+        # await message.add_reaction("1️⃣")
+        # await message.add_reaction("2️⃣")
+        # await message.add_reaction("🛠️"
 
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
@@ -297,12 +258,10 @@ class EventCommand(commands.Cog):
         message = await self.event_channel.fetch_message(payload.message_id)
         if not message:
             return
-        
 
         member = payload.member
         if not message.embeds:
             return
-        
 
         embed = message.embeds[0]
 
@@ -316,12 +275,13 @@ class EventCommand(commands.Cog):
 
         if not self.users_events.get(event_id):
             return None
-        
+
         if payload.event_type == 'REACTION_ADD' and member.name != self.bot.user.name:
             if member.name in self.users_events[event_id].team_one:
                 return
             if member.name in self.users_events[event_id].team_two:
                 return
+            self.users_events[event_id].player_ids.append(member)
             if payload.emoji.name == '1️⃣':
                 self.users_events[event_id].add_team_one(member.display_name)
 
@@ -331,15 +291,18 @@ class EventCommand(commands.Cog):
                 self.users_events[event_id].add_team_two(member.display_name)
                 embd, _ = self.users_events[event_id].generate_embed()
                 await message.edit(embed=embd)
+            if payload.emoji.name == "❌" and member.name == self.users_events[event_id].user:
+                del self.users_events[event_id]
+                await message.delete()
 
-            if payload.emoji.name == ':wrench:':
-                pass
     @commands.Cog.listener()
     async def on_raw_reaction_remove(self, payload: discord.RawReactionActionEvent):
         # Get message contents and user
-
+        if payload.guild_id:
+            # Fetch the guild
+            guild = self.bot.get_guild(payload.guild_id)
+            member = await guild.fetch_member(payload.user_id)
         message = await self.event_channel.fetch_message(payload.message_id)
-        member = payload.member
 
         if not message or len(message.embeds) < 1:
             return
@@ -357,17 +320,20 @@ class EventCommand(commands.Cog):
             return None
 
         # This will get the object for the member who owns the removed reaction.
-        member = discord.utils.get(message.guild.members, id=payload.user_id)
+        # member = discord.utils.get(message.guild.members, id=payload.user_id)
+        print(f"paylload is {member} type {type(member)}")
 
         if payload.event_type == 'REACTION_REMOVE':
             if payload.emoji.name == '1️⃣':
                 self.users_events[event_id].rm_team_one(member.display_name)
                 embd, _ = self.users_events[event_id].generate_embed()
                 await message.edit(embed=embd)
+
             if payload.emoji.name == '2️⃣':
                 self.users_events[event_id].rm_team_two(member.display_name)
                 embd, _ = self.users_events[event_id].generate_embed()
                 await message.edit(embed=embd)
+
 
     @commands.Cog.listener()
     async def on_message(self, ctx):
@@ -404,120 +370,25 @@ class EventCommand(commands.Cog):
                 self.in_progress[(ctx.author.name)] = None
             await ctx.author.send("Canceled event creation")
             return
-        
+
         if position is not None:
             match position:
                 case 0:
-                    event_id = hash(
-                        prep_hash(ctx.author.name) + prep_hash(ctx.content))
-
-                    in_progress['event_id'] = event_id
-                    self.users_events[event_id] = Event()
-                    self.users_events[event_id].user = ctx.author.name
-                    self.users_events[event_id].title = ctx.content
-                    self.in_progress[ctx.author.name]['position'] += 1
-                    position = self.in_progress[ctx.author.name]['position']
-                    await ctx.author.send("What game type?")
-
-                case 1:
-                    self.users_events[event_id].game_type = ctx.content
-                    await ctx.author.send("Date? 'today' to insert todays date")
-                    self.in_progress[ctx.author.name]['position'] += 1
-                    position = self.in_progress[ctx.author.name]['position']
-
-                case 2:
-                    if ctx.content == "today":
-                        current_datetime = datetime.now()
-                        formatted_date = current_datetime.strftime(
-                            "%A, %m/%d/%Y")
-                        self.users_events[event_id].date = str(formatted_date)
-                        self.in_progress[ctx.author.name]['position'] += 1
-                        position = self.in_progress[ctx.author.name]['position']
-
-                    else:
-                        self.users_events[event_id].date = ctx.content
-                        self.in_progress[ctx.author.name]['position'] += 1
-                        position = self.in_progress[ctx.author.name]['position']
-
-                    timezones = "\n".join(
-                        f"{abbreviation}: UTC {utc_offset}" for abbreviation, utc_offset in timezone_dict.items())
-
-                    await ctx.author.send(f"Time Zone? You will set your start time after this. Common US timezones:\n{timezones} \n *if you dont see your timezone, input the UTC offset, as a negative or positive number e.g. '12* or '-12'")
-
-                case 3:
-                    if timezone_dict.get(ctx.content.upper()):
-                        self.users_events[event_id].time_zone = int(timezone_dict[ctx.content.upper()])
-                        self.in_progress[ctx.author.name]['position'] += 1
-                        position = self.in_progress[ctx.author.name]['position']
-                        await ctx.author.send(f"Start Time?: e.g. 4:30PM or 14:30")
-                        return
-                    try:
-                        if str(ctx.content.isnumeric()):
-                            user_offset = int(ctx.content)
-                            if -12 <= user_offset <= 14:
-                                self.in_progress[ctx.author.name]['position'] += 1
-                                position = self.in_progress[ctx.author.name]['position']
-                                self.users_events[event_id].time_zone = user_offset
-                                await ctx.author.send(f"Start Time?: e.g. 4:30PM or 14:30")
-                                return
-
-                            else:
-                                # Outside the acceptable range
-                                await ctx.author.send(f"Please provide a UTC offset within the range of -12 to 14.")
-                    except ValueError:
-                        # Not a numeric input
-                        await ctx.author.send(f"Please provide a numeric UTC offset.")
-                
-                        
-                case 4:
-                    self.users_events[event_id].time = convert_user_input_to_utc(ctx.content,
-                                                                                 self.users_events[event_id].time_zone)
-                    logging.info(self.users_events[event_id].time)
-                    self.in_progress[ctx.author.name]['position'] += 1
-                    position = self.in_progress[ctx.author.name]['position']
-                    await ctx.author.send("Voice Channel link?")
-
-
-                case 5:
-                    self.users_events[event_id].channel = ctx.content
-                    self.in_progress[ctx.author.name]['position'] += 1
-                    position = self.in_progress[ctx.author.name]['position']
-                    await ctx.author.send("Banner? 'pass' for a default banner")
-
-                case 6:
                     try:
                         if len(ctx.attachments) > 0:
                             self.users_events[event_id].banner = ctx.attachments[0].url
                             msg, file = self.users_events[event_id].generate_embed(
                             )
                             message = await self.event_channel.send(embed=msg, file=file)
-                        else:
-                            msg, file = self.users_events[event_id].generate_embed(
-                            )
-                            file = discord.File(get_random_picture(), filename="output.png")
-                            message = await self.event_channel.send(embed=msg, file=file)
                         self.users_events[event_id].msg_id = message.id
                         await message.add_reaction("1️⃣")
                         await message.add_reaction("2️⃣")
-                        await message.add_reaction(":wrench:")
+                        await message.add_reaction("❌")
                         await ctx.author.send("Event created.")
-                        self.in_progress[ctx.author.name]['position'] += 1
-                        position = self.in_progress[ctx.author.name]['position']
                     except Exception as e:
                         await ctx.author.send(f"error {e}")
-                        await ctx.author.send("Title of Event??")
                         self.in_progress[ctx.author.name]['position'] = 0
 
-
-
-  
-
-                case 7:
-                    if self.in_progress.get(ctx.author.name):
-                        self.in_progress[(ctx.author.name)] = None
-
-                    await ctx.author.send("Event already created. Go away. \
-                                        Or send Cashapp donations to $RSkiles614")
 
     @commands.command()
     async def event(self, ctx):
@@ -528,37 +399,73 @@ class EventCommand(commands.Cog):
         await ctx.author.send("Type 'quit' to abandon event setup")
         await ctx.author.send("Title of Event??")
 
+    @app_commands.command(name="event", description="Create an event")
+    async def Mevent(self, interaction: discord.Interaction, title: str, channel: str, hours_from_now: app_commands.Range[int, 0, 24], minutes_from_now: app_commands.Range[int, 0, 60]):
+        name = interaction.user.name
+        event_id = hash(prep_hash(name) + prep_hash(title))
+
+        self.users_events[event_id] = Event()
+        self.users_events[event_id].user = name
+        self.users_events[event_id].title = title
+        hours = hours_from_now
+        minutes = minutes_from_now
+        self.seconds = ((hours * 60) + minutes) * 60
+
+        future_timestamp = time.time() + ((hours * 60) + minutes) * 60
+        self.users_events[event_id].time = future_timestamp
+        discord_timestamp = f"<t:{int(future_timestamp)}:R>"
+        self.users_events[event_id].rel_time = discord_timestamp
+
+        self.users_events[event_id].channel = channel
+
+        event = self.users_events[event_id]
+        chan = self.bot.get_channel(self.bot.EVENT_CHANNEL)
+        for guild in self.bot.guilds:
+            g = guild
+            roles = await guild.fetch_roles()
+        view = Menu(event, chan, roles, g, self.seconds, name)
+        self.in_progress[name] = {
+            "event_id": event_id,
+            "position": 0
+        }
+        await interaction.response.send_message(content=discord_timestamp, ephemeral=True, view=view)
+
     async def events_loop(self):
         reminder_delay = 120
         clean_up_delay = 300
+        reminder = True
+        starting = True
 
-        while True: 
+        while True:
             events_to_remove = []
 
             for evt_id, evt in self.users_events.items():
-                if evt.time and evt.time_zone and evt.msg_id:
-                    given_datetime = convert_user_time_to_utc(evt.time, evt.time_zone).replace(tzinfo=timezone.utc)
-                    current_datetime_in_desired_timezone = datetime.utcnow().replace(tzinfo=timezone.utc) + timedelta(hours=int(evt.time_zone))
-                    if given_datetime + timedelta(seconds=-reminder_delay) < current_datetime_in_desired_timezone:
-                        users = evt.team_one + evt.team_two
-                        mention_strings = [f"<@{member.id}>" for member in self.event_channel.guild.members if member.display_name in users]
-                        mention_string = ' '.join(mention_strings)
-                        reminder = await self.event_channel.send(f"Hey {mention_string}, there's an event happening in {int(reminder_delay / 60)} minutes, {evt.title}, ({evt.game_type}) with {evt.user}")
-                        deleyed_reminder_del = delayed_async_task(reminder_delay, reminder.delete)
-                        task = asyncio.create_task(deleyed_reminder_del)
-                        delayed_start = delayed_async_start_task(reminder_delay, self.event_channel, f"Hey {mention_string}, {evt.title} happening now!")
-                        task_two = asyncio.create_task(delayed_start)
-                        delete_event = await self.event_channel.fetch_message(evt.msg_id)
-                        task_three = delayed_async_delete_msg__task(clean_up_delay + reminder_delay, delete_event)
-                        events_to_remove.append(evt_id)
-                        await asyncio.gather(task, task_two, task_three)
-                        break
+                # Reminder
+                if (evt.time - reminder_delay < time.time()) and reminder:
+                    mention_strings = [
+                        f"<@{member.id}>" for member in evt.player_ids]
+                    mention_string = ' '.join(mention_strings)
+                    a_to_del = await self.event_channel.send(f"Hey {mention_string}, there's an event happening in {evt.rel_time}, {evt.title} with {evt.user}")
+                    reminder = False
+                if (evt.time < time.time()) and starting:
+                    mention_strings = [
+                        f"<@{member.id}>" for member in evt.player_ids]
+                    mention_string = ' '.join(mention_strings)
+                    to_del = await self.event_channel.send(f"Hey {mention_string}, {evt.title} happening now!")
+                    starting = False
+                if (evt.time + clean_up_delay < time.time()):
+                    events_to_remove.append(evt_id)
+                    delete_event = await self.event_channel.fetch_message(evt.msg_id)
+                    await delete_event.delete()
+                    await a_to_del.delete()
+                    await to_del.delete()
 
 
             for evt_id in events_to_remove:
                 del self.users_events[evt_id]
 
             await asyncio.sleep(1)
+
 
 async def setup(bot):
     await bot.add_cog(EventCommand(bot))

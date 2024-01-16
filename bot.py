@@ -1,30 +1,32 @@
 import discord
 import os
 from discord.ext import commands
-import asyncio
+import settings
+
+logger = settings.logging.getLogger("bot")
 
 
-intents = discord.Intents.default()
-intents.message_content = True
-
-bot = commands.Bot(command_prefix="?", intents=intents)
-
-
-@bot.event
-async def on_ready():
-    print(f'We have logged in as {bot.user}')
-    bot.EVENT_CHANNEL = int(os.environ['EVENT_CHANNEL'])
+class Bot(commands.Bot):
+    def __init__(self) -> None:
+        print('Initializing bot')
+        logger.info(f"Testing")
+        self.EVENT_CHANNEL = int(os.environ['EVENT_CHANNEL'])
+        intents = discord.Intents.default()
+        intents.message_content=True
+        super().__init__(command_prefix="?", intents=intents)
 
 
-async def load():
-    for f in os.listdir("./cogs"):
+    async def on_ready(self):
+        pass
+    
+    async def setup_hook(self):
+        for f in os.listdir("./cogs"):
             if f.endswith(".py"):
-                print("cogs." + f[:-3])
-                await bot.load_extension(f"cogs.{f[:-3]}")
+                cog_name = f"cogs.{f[:-3]}"
+                logger.info(f"Loading cog: {cog_name}")
+                await self.load_extension(cog_name)
+        
+    def run(self) -> None:
+        token = os.environ['TOKEN']
+        super().run(token)
 
-
-async def main():
-    await load()
-    await bot.start(os.environ['TOKEN'])
-
-asyncio.run(main())
