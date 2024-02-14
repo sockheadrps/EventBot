@@ -32,10 +32,12 @@ class Select(discord.ui.Select):
 
     async def callback(self, interaction: discord.Interaction):
         if str(interaction.user) == str(self.name):
-            selected_role_name = self.values[0]  # Get the selected role name from values
+            # Get the selected role name from values
+            selected_role_name = self.values[0]
 
             # Use discord.utils.get with the guild roles to get the role by name
-            selected_role = discord.utils.get(self.guild.roles, name=selected_role_name)
+            selected_role = discord.utils.get(
+                self.guild.roles, name=selected_role_name)
 
             if selected_role:
                 self.event.call_roles.append(selected_role)
@@ -45,6 +47,7 @@ class Select(discord.ui.Select):
 
             else:
                 await interaction.response.send_message("Invalid role selection.", ephemeral=True)
+
 
 class SelectView(discord.ui.View):
     def __init__(self, event=None, timeout=20, roles=None, guild=None, name="", message=None):
@@ -59,15 +62,18 @@ class Menu(discord.ui.View):
         self.value = None
         self.event = event
         self.event_channel = event_channel
-        self.roles = roles 
+        self.roles = roles
         self.guild = guild
         self.t_out = t_out
         self.name = name
 
-    @discord.ui.button(label="Use default Banner", style=discord.ButtonStyle.green)
-    async def default(self, interaction: discord.Interaction, button: discord.ui.Button):
+    # @discord.ui.button(label="Use default Banner", style=discord.ButtonStyle.green)
+    async def create_banner(self, interaction: discord.Interaction):
         msg, file = self.event.generate_embed()
-        file = discord.File(get_random_picture(), filename="output.png")
+
+        # file = discord.File(get_random_picture(), filename="output.png")
+        file = discord.File('assets/PondGif.gif', filename="output.gif")
+
         message = await self.event_channel.send(embed=msg, file=file)
         self.event.msg_id = message.id
         await message.add_reaction("1️⃣")
@@ -75,9 +81,9 @@ class Menu(discord.ui.View):
         await message.add_reaction("❌")
         await interaction.response.send_message("Choose Roles to alert", view=SelectView(timeout=self.t_out, roles=self.roles, guild=self.guild, name=self.name, event=self.event, message=message), delete_after=self.t_out)
 
-    @discord.ui.button(label="Use custom banner", style=discord.ButtonStyle.blurple)
-    async def custom(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.user.send('Type quit to cancel. Otherwise, attatch IMG file for banner. 1920x1080 seem to work best.')
+    # @discord.ui.button(label="Use custom banner", style=discord.ButtonStyle.blurple)
+    # async def custom(self, interaction: discord.Interaction, button: discord.ui.Button):
+    #     await interaction.user.send('Type quit to cancel. Otherwise, attatch IMG file for banner. 1920x1080 seem to work best.')
 
 
 def get_random_picture():
@@ -177,9 +183,9 @@ class Event:
         file = self.banner
 
         if len(self.banner) < 1:
-            file = discord.File(get_random_picture(), filename="output.png")
+            file = discord.File(get_random_picture(), filename="output.gif")
 
-            embed.set_image(url="attachment://output.png")
+            embed.set_image(url="attachment://output.gif")
         else:
             embed.set_image(url=file)
 
@@ -187,9 +193,12 @@ class Event:
         embed.add_field(name=" ", value=" ", inline=False)
 
         embed.add_field(name=" ", value=" ", inline=True)
-        embed.add_field(
-            name=f":lotus::lotus::lotus:**{self.title}**:lotus::lotus::lotus:", value=" ", inline=True)
-        embed.add_field(name=" ", value=" ", inline=True)
+        if len(self.title) <= 26:
+            embed.add_field(
+                name=f":lotus::lotus::lotus:**{self.title}**:lotus::lotus::lotus:", value=" ", inline=False)
+        else:
+            embed.add_field(
+                name=f":lotus::lotus::lotus:**{self.title[:40]}...**:lotus::lotus::lotus:", value=f"{self.title[40:]}", inline=False)
 
         embed.add_field(name=" ", value=" ", inline=False)
         embed.add_field(name=" ", value=" ", inline=False)
@@ -199,7 +208,7 @@ class Event:
             name=f":loud_sound:  VOICE CHANNEL{self.channel}  :loud_sound:", value="", inline=True)
 
         embed.add_field(
-            name=f":alarm_clock: {self.rel_time} :alarm_clock:", value=f"", inline=True)
+            name=f":alarm_clock: {self.rel_time} :alarm_clock:", value=f"", inline=False)
         embed.add_field(name=" ", value="", inline=False)
 
         embed.add_field(name=" ", value=" ", inline=False)
@@ -210,7 +219,8 @@ class Event:
         embed.add_field(name=f":swan:~~-----~~Team Two~~-----~~:swan:",
                         value=self.get_roster(self.team_two))
         if len(self.call_roles) > 0:
-            embed.add_field(name="Roles", value="\n".join([role.mention for role in self.call_roles]), inline=False)
+            embed.add_field(name="Roles", value="\n".join(
+                [role.mention for role in self.call_roles]), inline=False)
         embed.set_footer(text=f"{self.title} created by {self.user}")
 
         file = None
@@ -239,7 +249,7 @@ class EventCommand(commands.Cog):
     async def on_ready(self):
         self.event_channel = self.bot.get_channel(self.bot.EVENT_CHANNEL)
         asyncio.get_event_loop().create_task(self.events_loop())
-        await self.event_channel.purge()
+        # await self.event_channel.purge()
         # await asyncio.sleep(1)
         # await self.event_channel.purge()
         # test_event = create_event(Event)
@@ -252,7 +262,7 @@ class EventCommand(commands.Cog):
         # self.users_events[event_id].msg_id = message.id
         # await message.add_reaction("1️⃣")
         # await message.add_reaction("2️⃣")
-        # await message.add_reaction("🛠️"
+        # await message.add_reaction("🛠️")
 
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
@@ -337,7 +347,6 @@ class EventCommand(commands.Cog):
                 embd, _ = self.users_events[event_id].generate_embed()
                 await message.edit(embed=embd)
 
-
     @commands.Cog.listener()
     async def on_message(self, ctx):
 
@@ -392,7 +401,6 @@ class EventCommand(commands.Cog):
                         await ctx.author.send(f"error {e}")
                         self.in_progress[ctx.author.name]['position'] = 0
 
-
     @commands.command()
     async def event(self, ctx):
         self.in_progress[ctx.author.name] = {
@@ -428,12 +436,19 @@ class EventCommand(commands.Cog):
             for role in await guild.fetch_roles():
                 if str(role).startswith("CUSTOM"):
                     self.users_events[event_id].roles.append(role)
-        view = Menu(event, chan, self.users_events[event_id].roles, g, self.seconds, name)
+        view = Menu(
+            event, chan, self.users_events[event_id].roles, g, self.seconds, name)
+        await view.create_banner(interaction)
         self.in_progress[name] = {
             "event_id": event_id,
             "position": 0
         }
-        await interaction.response.send_message(content=discord_timestamp, ephemeral=True, view=view)
+        try:
+            # Send the initial response
+            await interaction.response.send_message(content=discord_timestamp, ephemeral=True, view=view)
+        except discord.errors.InteractionResponded:
+            # If the interaction has already been responded to, log the error or handle it accordingly
+            print("Interaction has already been responded to.")
 
     async def events_loop(self):
         reminder_delay = 120
@@ -464,7 +479,6 @@ class EventCommand(commands.Cog):
                     await delete_event.delete()
                     await a_to_del.delete()
                     await to_del.delete()
-
 
             for evt_id in events_to_remove:
                 del self.users_events[evt_id]

@@ -2,18 +2,19 @@ import discord
 from discord.ext import commands
 from typing import Literal, Optional
 
-    
+
 class Sync(commands.Cog):
-    def __init__(self, bot):    
+    def __init__(self, bot):
         self.bot = bot
 
     @commands.command()
-    @commands.guild_only()
-    @commands.is_owner()
+    # @commands.guild_only()
+    # @commands.is_owner()
     async def sync(self, ctx: commands.Context, *guilds: discord.Guild, spec: Optional[Literal["~", "*", "^"]] = None) -> None:
         print(ctx.guild)
+        print('sync ')
         await ctx.send(f"guild {ctx.guild}")
-        
+
         if not guilds:
             if spec == "~":
                 synced = await ctx.bot.tree.sync(guild=ctx.guild)
