@@ -75,7 +75,6 @@ class Menu(discord.ui.View):
         file = discord.File('assets/PondGif.gif', filename="output.gif")
 
         message = await self.event_channel.send(embed=msg, file=file)
-        await interaction.response.defer()
         self.event.msg_id = message.id
         await message.add_reaction("1️⃣")
         await message.add_reaction("2️⃣")
