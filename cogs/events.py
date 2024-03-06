@@ -446,13 +446,10 @@ class EventCommand(commands.Cog):
             "event_id": event_id,
             "position": 0
         }
-        try:
-            # Send the initial response
-            # await interaction.response.send_message(content=discord_timestamp, ephemeral=True, view=view)
-            await interaction.followup.send(content=discord_timestamp, ephemeral=True, view=view)
-        except discord.errors.InteractionResponded:
-            # If the interaction has already been responded to, log the error or handle it accordingly
-            print("Interaction has already been responded to.")
+        # Send the initial response
+        # await interaction.response.send_message(content=discord_timestamp, ephemeral=True, view=view)
+        await interaction.followup.send(content=discord_timestamp, ephemeral=True, view=view)
+
 
     async def events_loop(self):
         reminder_delay = 120
