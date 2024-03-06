@@ -26,6 +26,7 @@ class Select(discord.ui.Select):
                     emoji="👌",  # You can customize the emoji based on your preferences
                     description=f"Select {role.name} role."
                 )
+                print(f"option is {option}")
                 options.append(option)
         print(options)
         super().__init__(placeholder="Select a role", options=options)
@@ -414,7 +415,7 @@ class EventCommand(commands.Cog):
 
     @app_commands.command(name="event", description="Create an event")
     async def Mevent(self, interaction: discord.Interaction, title: str, channel: str, hours_from_now: app_commands.Range[int, 0, 24], minutes_from_now: app_commands.Range[int, 0, 60]):
-        interaction.response.defer()
+        await interaction.response.defer()
         name = interaction.user.name
         event_id = hash(prep_hash(name) + prep_hash(title))
 
