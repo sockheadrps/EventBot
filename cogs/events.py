@@ -69,7 +69,7 @@ class Menu(discord.ui.View):
 
     # @discord.ui.button(label="Use default Banner", style=discord.ButtonStyle.green)
     async def create_banner(self, interaction: discord.Interaction):
-        await interaction.response.defer() 
+        await interaction.response.defer()
         msg, file = self.event.generate_embed()
 
         # file = discord.File(get_random_picture(), filename="output.png")
@@ -81,6 +81,7 @@ class Menu(discord.ui.View):
         await message.add_reaction("2️⃣")
         await message.add_reaction("❌")
         await interaction.followup.send("Choose Roles to alert", view=SelectView(timeout=self.t_out, roles=self.roles, guild=self.guild, name=self.name, event=self.event, message=message), delete_after=self.t_out)
+
         # await interaction.response.send_message("Choose Roles to alert", view=SelectView(timeout=self.t_out, roles=self.roles, guild=self.guild, name=self.name, event=self.event, message=message), delete_after=self.t_out)
 
     # @discord.ui.button(label="Use custom banner", style=discord.ButtonStyle.blurple)
@@ -449,7 +450,6 @@ class EventCommand(commands.Cog):
         # Send the initial response
         # await interaction.response.send_message(content=discord_timestamp, ephemeral=True, view=view)
         await interaction.followup.send(content=discord_timestamp, ephemeral=True, view=view)
-
 
     async def events_loop(self):
         reminder_delay = 120
