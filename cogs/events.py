@@ -81,8 +81,8 @@ class Menu(discord.ui.View):
         await message.add_reaction("2️⃣")
         await message.add_reaction("❌")
         # await interaction.followup.send("Choose Roles to alert", view=SelectView(timeout=self.t_out, roles=self.roles, guild=self.guild, name=self.name, event=self.event, message=message), delete_after=self.t_out)
-
-        await interaction.response.send_message("Choose Roles to alert", view=SelectView(timeout=self.t_out, roles=self.roles, guild=self.guild, name=self.name, event=self.event, message=message), delete_after=self.t_out)
+        await interaction.followup.send("Choose Roles to alert", view=SelectView(timeout=self.t_out, roles=self.roles, guild=self.guild, name=self.name, event=self.event, message=message))
+        # await interaction.response.send_message("Choose Roles to alert", view=SelectView(timeout=self.t_out, roles=self.roles, guild=self.guild, name=self.name, event=self.event, message=message), delete_after=self.t_out)
 
     # @discord.ui.button(label="Use custom banner", style=discord.ButtonStyle.blurple)
     # async def custom(self, interaction: discord.Interaction, button: discord.ui.Button):
