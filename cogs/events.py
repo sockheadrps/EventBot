@@ -412,6 +412,7 @@ class EventCommand(commands.Cog):
 
     @app_commands.command(name="event", description="Create an event")
     async def Mevent(self, interaction: discord.Interaction, title: str, channel: str, hours_from_now: app_commands.Range[int, 0, 24], minutes_from_now: app_commands.Range[int, 0, 60]):
+        await interaction.response.defer()
         name = interaction.user.name
         event_id = hash(prep_hash(name) + prep_hash(title))
 
@@ -422,7 +423,7 @@ class EventCommand(commands.Cog):
         minutes = minutes_from_now
         self.seconds = ((hours * 60) + minutes) * 60
 
-        future_timestamp = time.time() + ((hours * 60) + minutes) * 60
+        future_timestamp = time.time() + ((hours * 60) + minutes) * 601
         self.users_events[event_id].time = future_timestamp
         discord_timestamp = f"<t:{int(future_timestamp)}:R>"
         self.users_events[event_id].rel_time = discord_timestamp
@@ -445,7 +446,8 @@ class EventCommand(commands.Cog):
         }
         try:
             # Send the initial response
-            await interaction.response.send_message(content=discord_timestamp, ephemeral=True, view=view)
+            await interaction.followup.send(content=discord_timestamp, ephemeral=True, view=view)
+            # await interaction.response.send_message(content=discord_timestamp, ephemeral=True, view=view)
         except discord.errors.InteractionResponded:
             # If the interaction has already been responded to, log the error or handle it accordingly
             print("Interaction has already been responded to.")
