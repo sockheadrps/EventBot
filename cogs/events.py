@@ -69,13 +69,13 @@ class Menu(discord.ui.View):
 
     # @discord.ui.button(label="Use default Banner", style=discord.ButtonStyle.green)
     async def create_banner(self, interaction: discord.Interaction):
-        await interaction.response.defer()
         msg, file = self.event.generate_embed()
 
         # file = discord.File(get_random_picture(), filename="output.png")
         file = discord.File('assets/PondGif.gif', filename="output.gif")
 
         message = await self.event_channel.send(embed=msg, file=file)
+        await interaction.response.defer()
         self.event.msg_id = message.id
         await message.add_reaction("1️⃣")
         await message.add_reaction("2️⃣")
