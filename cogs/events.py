@@ -414,6 +414,7 @@ class EventCommand(commands.Cog):
 
     @app_commands.command(name="event", description="Create an event")
     async def Mevent(self, interaction: discord.Interaction, title: str, channel: str, hours_from_now: app_commands.Range[int, 0, 24], minutes_from_now: app_commands.Range[int, 0, 60]):
+        interaction.response.defer()
         name = interaction.user.name
         event_id = hash(prep_hash(name) + prep_hash(title))
 
@@ -446,8 +447,8 @@ class EventCommand(commands.Cog):
             "position": 0
         }
         # Send the initial response
-        await interaction.response.send_message(content=discord_timestamp, ephemeral=True, view=view)
-        # await interaction.followup.send(content=discord_timestamp, ephemeral=True, view=view)
+        # await interaction.response.send_message(content=discord_timestamp, ephemeral=True, view=view)
+        await interaction.followup.send(content=discord_timestamp, ephemeral=True, view=view)
 
     async def events_loop(self):
         reminder_delay = 120
